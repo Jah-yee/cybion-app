@@ -110,7 +110,7 @@ public class MainActivity extends Activity implements ShellHost {
         webView.setBackgroundColor(color(R.color.web_bg));
         webView.setWebViewClient(new CbnWebViewClient(this));
         webView.setWebChromeClient(new CbnWebChromeClient(this));
-        webView.setDownloadListener((url, ua, cd, mime, len) -> onExternal(url));
+        webView.setDownloadListener((url, ua, cd, mime, len) -> onDownloadRequested(url));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
@@ -190,10 +190,6 @@ public class MainActivity extends Activity implements ShellHost {
 
     @Override
     public void onBackPressed() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            super.onBackPressed();
-            return;
-        }
         handleBack();
     }
 
@@ -220,6 +216,19 @@ public class MainActivity extends Activity implements ShellHost {
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.no_app_for_link, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * Download hand-off. blob:/data: URLs come from in-page script and cannot be
+     * resolved by an external app, so they are ignored rather than handed off.
+     */
+    private void onDownloadRequested(String url) {
+        if (url == null) return;
+        String scheme = Uri.parse(url).getScheme();
+        if (scheme == null) return;
+        scheme = scheme.toLowerCase();
+        if (scheme.equals("blob") || scheme.equals("data")) return;
+        onExternal(url);
     }
 
     @Override
@@ -294,6 +303,11 @@ public class MainActivity extends Activity implements ShellHost {
 
     @Override
     public void onPermissionRequest(PermissionRequest request) {
+        Uri origin = request.getOrigin();
+        if (origin == null || !UrlPolicy.isAllowed(origin.getHost())) {
+            request.deny();
+            return;
+        }
         List<String> needed = new ArrayList<>();
         for (String res : request.getResources()) {
             if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(res)

@@ -35,6 +35,11 @@ that app can run where a normal browser can't (see
   ([`ShellConfig`](../android/app/src/main/java/io/ntnl/cybion/ShellConfig.java),
   `ShellConfig` in `Sources/main.swift`) so a real re-target is a one-line
   change and everything else follows.
+- **Single window.** `window.open` / `target="_blank"` does not get a real
+  popup. A new top-level URL is routed through the same navigation policy:
+  allowed hosts load in the existing window, everything else goes to the OS,
+  and blocked URLs are dropped. In-page modals and overlays are unaffected;
+  only genuine popup windows are unsupported.
 - **Persistent website data.** The shell uses the platform's default, on-disk
   website data store, so a sign-in survives restarts. The session still lives
   in the browser's cookie jar, not in shell-owned storage.

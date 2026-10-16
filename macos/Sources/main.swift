@@ -5,8 +5,8 @@
 // data store, routes other hosts to the system browser, and injects the shared
 // Ed25519 shim before any page script. No model, no worker, no credentials.
 
-import AppKit
-import WebKit
+@preconcurrency import AppKit
+@preconcurrency import WebKit
 
 // MARK: - Configuration
 
@@ -196,6 +196,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         appMenu.addItem(withTitle: "Quit Cybion", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
 
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+
         let viewItem = NSMenuItem()
         mainMenu.addItem(viewItem)
         let viewMenu = NSMenu(title: "View")
@@ -213,6 +226,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        // Subframes (iframes) are the page's own business; only steer top-level nav.
+        if let frame = navigationAction.targetFrame, !frame.isMainFrame {
+            decisionHandler(.allow)
+            return
+        }
         switch NavigationPolicy.decide(navigationAction.request.url) {
         case .inApp:
             decisionHandler(.allow)

@@ -39,16 +39,18 @@ this is not distributed through an app store.
 
 - **Android**: Android 7 (API 24) or newer. The WebView must be updatable so
   the compatibility shim keeps working as browsers improve.
-- **macOS**: macOS 12 (Monterey) or newer. On macOS 13.3+ the WebKit engine
-  already supports Ed25519 and the shim is a no-op.
+- **macOS**: macOS 12 (Monterey) or newer. On macOS 14+ the WebKit engine
+  already supports Ed25519 and the shim steps aside.
 
 ## Install
 
-- **Android** — download the latest `cybion-app-android-universal.apk` from
-  this repository's Releases and sideload it.
-- **macOS** — download the latest `cybion-app-macos-*.dmg`, open it, and drag
-  **Cybion** into Applications. See [docs/compatibility.md](docs/compatibility.md)
-  if Gatekeeper warns about an unidentified developer.
+- **Android** — download the latest `cybion-app-android-universal.apk` from the
+  [Jah-yee/cybion-app](https://github.com/Jah-yee/cybion-app) Releases and
+  sideload it.
+- **macOS** — download the latest `cybion-app-macos-*.dmg` from the same
+  Releases, open it, and drag **Cybion** into Applications. See
+  [docs/compatibility.md](docs/compatibility.md) if Gatekeeper warns about an
+  unidentified developer.
 
 ## Build
 
@@ -86,9 +88,9 @@ A shell is a browser, not a sandbox, and it holds no secrets of its own.
 - Camera and microphone are surfaced to the page only after the OS asks the
   user, and only because the web app can use them.
 
-The only privileged code is the injected shim. It is limited to the hosts in
-`ShellConfig.ALLOWED_HOSTS` (Android) and is a few hundred lines of public
-domain [TweetNaCl](https://tweetnacl.js.org/) — read it before trusting it.
+The only privileged code is the injected shim: the public-domain
+[TweetNaCl](https://tweetnacl.js.org/) library plus a short, native-first
+adapter around `crypto.subtle`. Read it before trusting it.
 
 ## Documentation
 

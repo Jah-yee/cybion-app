@@ -13,6 +13,10 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 final class CbnWebViewClient extends WebViewClient {
+    // net::ERR_ABORTED. WebView reports this for navigations the page itself
+    // cancelled (redirects, SPA route changes); it is not a load failure.
+    private static final int ERR_ABORTED = -3;
+
     private final ShellHost host;
 
     CbnWebViewClient(ShellHost host) {
@@ -63,6 +67,7 @@ final class CbnWebViewClient extends WebViewClient {
     public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
         if (request == null || !request.isForMainFrame()) return;
         int code = error != null ? error.getErrorCode() : -1;
+        if (code == ERR_ABORTED) return;
         CharSequence desc = error != null ? error.getDescription() : null;
         host.onMainFrameError(code, desc != null ? desc.toString() : "", request.getUrl().toString());
     }
@@ -71,6 +76,7 @@ final class CbnWebViewClient extends WebViewClient {
     @Override
     public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) return; // new callback handles it
+        if (errorCode == ERR_ABORTED) return;
         host.onMainFrameError(errorCode, description, failingUrl);
     }
 

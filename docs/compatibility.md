@@ -23,38 +23,45 @@ check"*.
 Consequences for the shells:
 
 - **macOS 12–13** ship a WebKit without Ed25519, so the macOS shell injects the
-  shim. On macOS 14+ the same shim detects native support and does nothing.
+  shim. On macOS 14+ the same shim detects native support and steps aside.
 - **Android** WebView is updatable, so most devices pass without the shim; the
   shim covers devices whose WebView has not reached Chromium 137 (the Huawei
   target was Chromium 114). The shim is harmless once the WebView catches up.
 
 ## The shim
 
-[`shell/ed25519-polyfill.js`](../shell/ed25519-polyfill.js) adds Ed25519
-`importKey` / `sign` / `verify` to `crypto.subtle` using
-[TweetNaCl](https://tweetnacl.js.org/) (public domain) when — and only when —
-the platform does not already provide it. It is injected before any page
-script: as a document-start script on Android
+[`shell/ed25519-polyfill.js`](../shell/ed25519-polyfill.js) makes Ed25519
+available in `crypto.subtle` using
+[TweetNaCl](https://tweetnacl.js.org/) (public domain), as a fallback only. It
+wraps `crypto.subtle.importKey` and `crypto.subtle.verify` and **prefers the
+platform implementation**: on an engine that already has Ed25519 it delegates
+straight through, and it falls back to TweetNaCl only when the native import
+rejects (the first failed import is remembered for the rest of the document).
+It is injected before any page script: as a document-start script on Android
 (`WebViewCompat.addDocumentStartJavaScript`) and as a `WKUserScript` at
 `documentStart` on macOS.
 
-Rules it follows:
+Scope:
 
-- **Feature-detect first.** If `crypto.subtle` already imports an Ed25519 JWK,
-  the shim leaves `crypto.subtle` untouched.
-- **Stay narrow.** Only the signature path the session check uses is added;
-  signing/verification are constant-time in TweetNaCl.
+- **Public keys, verify only.** It adds `importKey` for Ed25519 JWK / SPKI / raw
+  public keys and `verify`. It does **not** implement `sign`, `exportKey`, or
+  `generateKey`; importing a private-key JWK, or requesting `sign`, is rejected
+  rather than silently mishandled. This is exactly the surface the session check
+  needs — it only imports a public key
+  (`{kty:"OKP",crv:"Ed25519",x}`) and verifies.
+- **Native first.** On engines with Ed25519 the wrappers are pass-throughs and
+  TweetNaCl never runs.
 - **Auditable.** It is the only privileged code in either shell. Read it.
 
 This is a transitional measure. As WebView and WebKit updates land, the shim
-stops being used; it can be removed once the shells' minimum supported engines
-gain native Ed25519.
+stops being exercised; it can be removed once the shells' minimum supported
+engines gain native Ed25519.
 
 ## Platform support
 
 | | Minimum | Notes |
 | --- | --- | --- |
-| Android | API 24 (Android 7) | Requires an updatable WebView. Shim needs `DOCUMENT_START_SCRIPT` (androidx.webkit); without it the page falls back to the platform's native support. |
+| Android | API 24 (Android 7) | Requires an updatable WebView. The shim is injected via `DOCUMENT_START_SCRIPT` (androidx.webkit); a WebView too old for that API is also too old to have native Ed25519. |
 | macOS | 12 (Monterey) | Universal binary (arm64 + x86_64). |
 
 ## When you don't need a shell
