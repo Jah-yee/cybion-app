@@ -68,6 +68,12 @@
         var keyData = args[1];
         var extractable = args[3];
         var usages = args[4];
+        if (usages && usages.indexOf("sign") !== -1) {
+          return Promise.reject(new Error("Ed25519: the shim does not implement sign"));
+        }
+        if (format === "jwk" && keyData && keyData.d) {
+          return Promise.reject(new Error("Ed25519: the shim does not support private keys"));
+        }
         var raw = null;
         if (format === "jwk") raw = b64uToBytes(keyData.x);
         else if (format === "spki") raw = rawFromSpki(keyData);
